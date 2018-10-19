@@ -8,6 +8,15 @@ describe('mockingoose', () => {
 		jest.clearAllMocks();
 	});
 
+  describe('test instantiateModel false', () => {
+    it('without _id', async () => {
+      mockingoose.User.toReturn({name: 'test'}, 'find', { instantiateModel: false });
+
+      const r = await User.find().exec()
+      expect(r).toEqual({name: 'test'})
+    })
+  });
+
 	describe('explicit tests', () => {
 		it('should validate', () => {
 			const user = new User({

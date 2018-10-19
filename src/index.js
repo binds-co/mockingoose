@@ -31,6 +31,15 @@ const mockedReturn = function (cb) {
   const Model = mongoose.model(modelName);
 
   let mock = mockingoose.__mocks[modelName] && mockingoose.__mocks[modelName][op];
+  let mockingOptions = mockingoose.__mocksOptions[modelName] || {};
+
+  if (!mockingOptions.hasOwnProperty(op)) {
+    mockingOptions[op] = { instantiateModel: true }
+  }
+
+  if (!mockingOptions[op].hasOwnProperty('instantiateModel')) {
+    mockingOptions[op].instantiateModel = true
+  }
 
   let err = null;
 
@@ -38,7 +47,12 @@ const mockedReturn = function (cb) {
 
   if (!mock && op === 'save') { mock = this;}
 
-  if (mock && mock instanceof Model === false && (!['update', 'count'].includes(op))) {
+  if (
+    mock && 
+    mock instanceof Model === false &&
+    (!['update', 'count'].includes(op))
+    && mockingOptions.instantiateModel
+  ) {
     mock = Array.isArray(mock) ? mock.map(item => new Model(item)) : new Model(mock);
 
     if (_mongooseOptions.lean) mock = Array.isArray(mock) ? mock.map(item => item.toObject()) : mock.toObject();
@@ -129,6 +143,7 @@ jest.doMock('mongoose', () => mongoose);
 
 const target = {
   __mocks: {},
+  __mocksOptions: {},
   resetAll() { this.__mocks = {}; },
   toJSON() { return this.__mocks; },
 };
@@ -138,16 +153,29 @@ const traps = {
     if (target.hasOwnProperty(prop)) return Reflect.get(target, prop);
 
     return {
-      toReturn(o, op = 'find') {
-        target.__mocks.hasOwnProperty(prop)
-          ? target.__mocks[prop][op] = o
-          : target.__mocks[prop] = { [op]: o };
+      toReturn(o, op = 'find', opt = { }) {
+        if (target.__mocks.hasOwnProperty(prop)) {
+          target.__mocks[prop][op] = o
+        } else {
+          target.__mocks[prop] = { [op]: o }
+        }
+
+        if (!opt.hasOwnProperty('instantiateModel')) {
+          opt.instantiateModel = true
+        }
+
+        if (target.__mocksOptions.hasOwnProperty(prop)) {
+          target.__mocksOptions[prop][op] = opt
+        } else {
+          target.__mocksOptions[prop] = { [op]: opt }
+        }
 
         return this;
       },
 
       reset(op) {
         op && delete target.__mocks[prop][op] || delete target.__mocks[prop];
+        op && delete target.__mocksOptions[prop];
 
         return this;
       },
