@@ -34,11 +34,18 @@ const mockedReturn = function (cb) {
   let mockingOptions = mockingoose.__mocksOptions[modelName] || {};
 
   if (!mockingOptions.hasOwnProperty(op)) {
-    mockingOptions[op] = { instantiateModel: true }
-  }
+    mockingOptions[op] = {
+      instantiateModel: true,
+      forceLean: false
+    }
+  }                          
 
   if (!mockingOptions[op].hasOwnProperty('instantiateModel')) {
     mockingOptions[op].instantiateModel = true
+  }
+
+  if (!mockingOptions[op].hasOwnProperty('forceLean')) {
+    mockingOptions[op].forceLean = false
   }
 
   let err = null;
@@ -51,11 +58,11 @@ const mockedReturn = function (cb) {
     mock && 
     mock instanceof Model === false &&
     (!['update', 'count'].includes(op))
-    && mockingOptions.instantiateModel
+    && mockingOptions[op].instantiateModel
   ) {
     mock = Array.isArray(mock) ? mock.map(item => new Model(item)) : new Model(mock);
 
-    if (_mongooseOptions.lean) mock = Array.isArray(mock) ? mock.map(item => item.toObject()) : mock.toObject();
+    if (_mongooseOptions.lean || mockingOptions[op].forceLean) mock = Array.isArray(mock) ? mock.map(item => item.toObject()) : mock.toObject();
   }
 
   if (cb) return cb(err, mock);
@@ -162,6 +169,10 @@ const traps = {
 
         if (!opt.hasOwnProperty('instantiateModel')) {
           opt.instantiateModel = true
+        }
+
+        if (!opt.hasOwnProperty('forceLean')) {
+          opt.forceLean = false
         }
 
         if (target.__mocksOptions.hasOwnProperty(prop)) {
